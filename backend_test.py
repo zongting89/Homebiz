@@ -42,9 +42,12 @@ class HomeBizAPITester:
                 self.tests_passed += 1
                 print(f"✅ Passed - Status: {response.status_code}")
                 try:
-                    response_data = response.json()
-                    if isinstance(response_data, dict) and len(str(response_data)) < 500:
-                        print(f"   Response: {response_data}")
+                    if response.headers.get('content-type', '').startswith('application/json'):
+                        response_data = response.json()
+                        if isinstance(response_data, dict) and len(str(response_data)) < 500:
+                            print(f"   Response: {response_data}")
+                    else:
+                        print(f"   Response: Non-JSON content")
                 except:
                     print(f"   Response: {response.text[:200]}...")
             else:
