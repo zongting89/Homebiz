@@ -1224,6 +1224,25 @@ const SubscriptionStatusCheck = () => {
   );
 };
 
+// Protected Route Component
+const ProtectedRoute = ({ children, requiredRole }) => {
+  const { user, loading } = React.useContext(AuthContext);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+
+  if (requiredRole && user.role !== requiredRole) {
+    return <Navigate to="/discover" />;
+  }
+
+  return children;
+};
+
 // Main App Component
 function App() {
   return (
@@ -1241,6 +1260,30 @@ function App() {
               element={
                 <ProtectedRoute requiredRole="seller">
                   <Subscription />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/subscription/success" 
+              element={
+                <ProtectedRoute requiredRole="seller">
+                  <SubscriptionStatusCheck />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/subscription/cancel" 
+              element={
+                <ProtectedRoute requiredRole="seller">
+                  <Subscription />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/dashboard" 
+              element={
+                <ProtectedRoute requiredRole="seller">
+                  <Dashboard />
                 </ProtectedRoute>
               } 
             />
