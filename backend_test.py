@@ -51,7 +51,7 @@ class HomeBizAPITester:
                 print(f"❌ Failed - Expected {expected_status}, got {response.status_code}")
                 print(f"   Response: {response.text[:300]}...")
 
-            return success, response.json() if response.text and response.text.strip() else {}
+            return success, response.json() if response.text and response.text.strip() and response.headers.get('content-type', '').startswith('application/json') else {}
 
         except Exception as e:
             print(f"❌ Failed - Error: {str(e)}")
