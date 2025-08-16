@@ -1,53 +1,746 @@
-import { useEffect } from "react";
-import "./App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { BrowserRouter as Router, Routes, Route, Navigate, Link, useNavigate, useLocation } from 'react-router-dom';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
+import { Button } from './components/ui/button';
+import { Input } from './components/ui/input';
+import { Label } from './components/ui/label';
+import { Badge } from './components/ui/badge';
+import { MapPin, Store, CreditCard, Users, Search, Plus } from 'lucide-react';
+import './App.css';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+// Set up axios base URL
+const API_BASE = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+axios.defaults.baseURL = API_BASE;
 
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
-    }
-  };
+// Auth Context
+const AuthContext = React.createContext();
+
+const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    helloWorldApi();
+    const token = localStorage.getItem('token');
+    const userData = localStorage.getItem('user');
+    
+    if (token && userData) {
+      setUser(JSON.parse(userData));
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    }
+    setLoading(false);
   }, []);
 
+  const login = async (email, password) => {
+    const response = await axios.post('/api/auth/login', { email, password });
+    const { access_token, user: userData } = response.data;
+    
+    localStorage.setItem('token', access_token);
+    localStorage.setItem('user', JSON.stringify(userData));
+    axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+    setUser(userData);
+    
+    return userData;
+  };
+
+  const register = async (email, password, name, role) => {
+    const response = await axios.post('/api/auth/register', { email, password, name, role });
+    const { access_token, user: userData } = response.data;
+    
+    localStorage.setItem('token', access_token);
+    localStorage.setItem('user', JSON.stringify(userData));
+    axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+    setUser(userData);
+    
+    return userData;
+  };
+
+  const logout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    delete axios.defaults.headers.common['Authorization'];
+    setUser(null);
+  };
+
   return (
-    <div>
-      <header className="App-header">
-        <a
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
+    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+// Navigation Component
+const Navigation = () => {
+  const { user, logout } = React.useContext(AuthContext);
+  const navigate = useNavigate();
+
+  return (
+    <nav className="bg-white border-b border-gray-200 shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16">
+          <div className="flex items-center space-x-8">
+            <Link to="/" className="flex items-center space-x-2">
+              <Store className="w-8 h-8 text-emerald-600" />
+              <span className="text-xl font-bold text-gray-900">HomeBiz SG</span>
+            </Link>
+            
+            <div className="flex space-x-6">
+              <Link to="/discover" className="text-gray-700 hover:text-emerald-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                Discover
+              </Link>
+              {user && user.role === 'seller' && (
+                <>
+                  <Link to="/dashboard" className="text-gray-700 hover:text-emerald-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                    Dashboard
+                  </Link>
+                  <Link to="/subscription" className="text-gray-700 hover:text-emerald-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                    Subscription
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-4">
+            {user ? (
+              <>
+                <span className="text-sm text-gray-700">Welcome, {user.name}</span>
+                <Badge variant={user.role === 'seller' ? 'default' : 'secondary'}>
+                  {user.role}
+                </Badge>
+                <Button variant="outline" onClick={logout} size="sm">
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <div className="space-x-2">
+                <Button variant="outline" onClick={() => navigate('/login')} size="sm">
+                  Login
+                </Button>
+                <Button onClick={() => navigate('/register')} size="sm">
+                  Register
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </nav>
+  );
+};
+
+// Home Component
+const Home = () => {
+  return (
+    <div className="min-h-screen">
+      {/* Hero Section */}
+      <section className="relative bg-gradient-to-br from-emerald-50 to-teal-50 py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <h1 className="text-5xl font-bold text-gray-900 leading-tight mb-6">
+                Discover Amazing
+                <span className="text-emerald-600 block">Home Businesses</span>
+                in Singapore
+              </h1>
+              <p className="text-xl text-gray-600 mb-8 leading-relaxed">
+                Connect with local entrepreneurs and discover unique products and services 
+                right in your neighborhood. Support Singapore's thriving home business community.
+              </p>
+              <div className="flex space-x-4">
+                <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700">
+                  <Search className="w-5 h-5 mr-2" />
+                  Explore Businesses
+                </Button>
+                <Button variant="outline" size="lg">
+                  <Store className="w-5 h-5 mr-2" />
+                  List Your Business
+                </Button>
+              </div>
+            </div>
+            
+            <div className="relative">
+              <img
+                src="https://images.unsplash.com/photo-1571204829887-3b8d69e4094d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NjZ8MHwxfHNlYXJjaHwzfHxzbWFsbCUyMGJ1c2luZXNzfGVufDB8fHx8MTc1NTM1ODk2M3ww&ixlib=rb-4.1.0&q=85"
+                alt="Local Business"
+                className="rounded-2xl shadow-2xl w-full"
+              />
+              <div className="absolute -bottom-6 -left-6 bg-white rounded-xl p-4 shadow-lg">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
+                    <Users className="w-6 h-6 text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">500+ Businesses</p>
+                    <p className="text-sm text-gray-600">Already registered</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              Why Choose HomeBiz SG?
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              We make it easy to discover and connect with home-based businesses in Singapore
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-8">
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <CardHeader>
+                <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mb-4">
+                  <MapPin className="w-8 h-8 text-emerald-600" />
+                </div>
+                <CardTitle className="text-xl">Location-Based Discovery</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className="text-gray-600">
+                  Find businesses near you or in any specific area in Singapore with our 
+                  interactive map feature.
+                </CardDescription>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <CardHeader>
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                  <CreditCard className="w-8 h-8 text-blue-600" />
+                </div>
+                <CardTitle className="text-xl">Secure Payments</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className="text-gray-600">
+                  Make secure credit card payments directly through our platform. 
+                  Quick, safe, and reliable transactions.
+                </CardDescription>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <CardHeader>
+                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-4">
+                  <Store className="w-8 h-8 text-purple-600" />
+                </div>
+                <CardTitle className="text-xl">Business Registration</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className="text-gray-600">
+                  Easy business registration for home entrepreneurs. Showcase your 
+                  products and services to thousands of customers.
+                </CardDescription>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20 bg-emerald-600">
+        <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
+          <h2 className="text-4xl font-bold text-white mb-6">
+            Ready to Start Your Journey?
+          </h2>
+          <p className="text-xl text-emerald-100 mb-8">
+            Join our community of local businesses and customers today
+          </p>
+          <div className="flex justify-center space-x-4">
+            <Button size="lg" variant="secondary">
+              Browse Businesses
+            </Button>
+            <Button size="lg" variant="outline" className="text-white border-white hover:bg-white hover:text-emerald-600">
+              Register Your Business
+            </Button>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };
 
+// Login Component
+const Login = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const { login } = React.useContext(AuthContext);
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      await login(email, password);
+      navigate('/discover');
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Login failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full">
+        <Card>
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-bold">Sign In</CardTitle>
+            <CardDescription>Access your HomeBiz SG account</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {error && (
+                <div className="bg-red-50 text-red-700 p-3 rounded-md text-sm">
+                  {error}
+                </div>
+              )}
+              
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+              
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? 'Signing in...' : 'Sign In'}
+              </Button>
+            </form>
+            
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-600">
+                Don't have an account?{' '}
+                <Link to="/register" className="text-emerald-600 hover:text-emerald-500">
+                  Sign up
+                </Link>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+// Register Component
+const Register = () => {
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    name: '',
+    role: 'buyer'
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const { register } = React.useContext(AuthContext);
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      await register(formData.email, formData.password, formData.name, formData.role);
+      if (formData.role === 'seller') {
+        navigate('/subscription');
+      } else {
+        navigate('/discover');
+      }
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Registration failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full">
+        <Card>
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
+            <CardDescription>Join the HomeBiz SG community</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {error && (
+                <div className="bg-red-50 text-red-700 p-3 rounded-md text-sm">
+                  {error}
+                </div>
+              )}
+              
+              <div className="space-y-2">
+                <Label htmlFor="name">Full Name</Label>
+                <Input
+                  id="name"
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="role">I want to:</Label>
+                <div className="flex space-x-4">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="role"
+                      value="buyer"
+                      checked={formData.role === 'buyer'}
+                      onChange={(e) => setFormData({...formData, role: e.target.value})}
+                      className="text-emerald-600"
+                    />
+                    <span className="text-sm">Browse & Buy</span>
+                  </label>
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="role"
+                      value="seller"
+                      checked={formData.role === 'seller'}
+                      onChange={(e) => setFormData({...formData, role: e.target.value})}
+                      className="text-emerald-600"
+                    />
+                    <span className="text-sm">Sell Products/Services</span>
+                  </label>
+                </div>
+              </div>
+              
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? 'Creating account...' : 'Create Account'}
+              </Button>
+            </form>
+            
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-600">
+                Already have an account?{' '}
+                <Link to="/login" className="text-emerald-600 hover:text-emerald-500">
+                  Sign in
+                </Link>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+// Subscription Component
+const Subscription = () => {
+  const [packages, setPackages] = useState({});
+  const [currentSubscription, setCurrentSubscription] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const { user } = React.useContext(AuthContext);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchPackages();
+    fetchCurrentSubscription();
+  }, []);
+
+  const fetchPackages = async () => {
+    try {
+      const response = await axios.get('/api/subscription/packages');
+      setPackages(response.data);
+    } catch (error) {
+      console.error('Error fetching packages:', error);
+    }
+  };
+
+  const fetchCurrentSubscription = async () => {
+    try {
+      const response = await axios.get('/api/subscription/current');
+      setCurrentSubscription(response.data);
+    } catch (error) {
+      console.error('Error fetching subscription:', error);
+    }
+  };
+
+  const handleSubscribe = async (packageId) => {
+    setLoading(true);
+    try {
+      const response = await axios.post('/api/subscription/checkout', {
+        package_id: packageId,
+        origin_url: window.location.origin
+      });
+      
+      // Redirect to Stripe checkout
+      window.location.href = response.data.checkout_url;
+    } catch (error) {
+      console.error('Error creating checkout:', error);
+      setLoading(false);
+    }
+  };
+
+  if (user && user.role !== 'seller') {
+    return <Navigate to="/discover" />;
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-12">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            Choose Your Subscription Plan
+          </h1>
+          <p className="text-xl text-gray-600">
+            Subscribe to list your business and start selling on HomeBiz SG
+          </p>
+        </div>
+
+        {/* Current Subscription Status */}
+        {currentSubscription && currentSubscription.has_subscription && (
+          <Card className="mb-8 border-emerald-200 bg-emerald-50">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-emerald-800">Current Subscription</h3>
+                  <p className="text-emerald-600">
+                    {currentSubscription.is_active ? 'Active' : 'Inactive'} • 
+                    Expires: {new Date(currentSubscription.expires_at).toLocaleDateString()}
+                  </p>
+                </div>
+                {currentSubscription.is_active && (
+                  <Button onClick={() => navigate('/dashboard')} variant="outline">
+                    Go to Dashboard
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Subscription Packages */}
+        <div className="grid md:grid-cols-2 gap-8">
+          {Object.entries(packages).map(([packageId, pkg]) => (
+            <Card key={packageId} className="relative border-2 hover:border-emerald-300 transition-colors">
+              <CardHeader>
+                <CardTitle className="text-2xl">{pkg.name}</CardTitle>
+                <div className="text-3xl font-bold text-emerald-600">
+                  S${pkg.price}
+                  <span className="text-lg font-normal text-gray-600">/month</span>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                    <span>List your home business</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                    <span>Unlimited products/services</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                    <span>Customer payment processing</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                    <span>Location-based discovery</span>
+                  </div>
+                  {packageId === 'premium' && (
+                    <>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                        <span>Priority listing</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                        <span>Analytics dashboard</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+                
+                <Button 
+                  onClick={() => handleSubscribe(packageId)}
+                  disabled={loading}
+                  className="w-full"
+                  variant={packageId === 'premium' ? 'default' : 'outline'}
+                >
+                  {loading ? 'Processing...' : 'Subscribe Now'}
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Discover Component  
+const Discover = () => {
+  const [businesses, setBusinesses] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchBusinesses();
+  }, []);
+
+  const fetchBusinesses = async () => {
+    try {
+      const response = await axios.get('/api/businesses');
+      setBusinesses(response.data);
+    } catch (error) {
+      console.error('Error fetching businesses:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">Loading businesses...</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            Discover Local Businesses
+          </h1>
+          <p className="text-xl text-gray-600">
+            Find amazing home-based businesses near you in Singapore
+          </p>
+        </div>
+
+        {businesses.length === 0 ? (
+          <Card>
+            <CardContent className="text-center py-12">
+              <Store className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No businesses yet</h3>
+              <p className="text-gray-600">Be the first to register your business!</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {businesses.map((business) => (
+              <Card key={business.business_id} className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Store className="w-5 h-5" />
+                    <span>{business.name}</span>
+                  </CardTitle>
+                  <Badge variant="secondary">{business.category}</Badge>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-600 mb-4">{business.description}</p>
+                  <div className="flex items-center space-x-2 text-sm text-gray-500">
+                    <MapPin className="w-4 h-4" />
+                    <span>{business.address}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Protected Route Component
+const ProtectedRoute = ({ children, requiredRole }) => {
+  const { user, loading } = React.useContext(AuthContext);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+
+  if (requiredRole && user.role !== requiredRole) {
+    return <Navigate to="/discover" />;
+  }
+
+  return children;
+};
+
+// Main App Component
 function App() {
   return (
-    <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </div>
+    <AuthProvider>
+      <Router>
+        <div className="App">
+          <Navigation />
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/discover" element={<Discover />} />
+            <Route 
+              path="/subscription" 
+              element={
+                <ProtectedRoute requiredRole="seller">
+                  <Subscription />
+                </ProtectedRoute>
+              } 
+            />
+          </Routes>
+        </div>
+      </Router>
+    </AuthProvider>
   );
 }
 
