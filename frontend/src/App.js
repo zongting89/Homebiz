@@ -886,23 +886,342 @@ const Discover = () => {
   );
 };
 
-// Protected Route Component
-const ProtectedRoute = ({ children, requiredRole }) => {
-  const { user, loading } = React.useContext(AuthContext);
+// Dashboard Component for Sellers
+const Dashboard = () => {
+  const [businesses, setBusinesses] = useState([]);
+  const [subscription, setSubscription] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const { user } = React.useContext(AuthContext);
+  const navigate = useNavigate();
 
-  if (loading) {
-    return <div>Loading...</div>;
-  }
+  useEffect(() => {
+    if (user && user.role === 'seller') {
+      fetchMyBusinesses();
+      fetchSubscription();
+    }
+  }, [user]);
 
-  if (!user) {
-    return <Navigate to="/login" />;
-  }
+  const fetchMyBusinesses = async () => {
+    try {
+      const response = await axios.get('/api/businesses/my');
+      setBusinesses(response.data);
+    } catch (error) {
+      console.error('Error fetching businesses:', error);
+    }
+  };
 
-  if (requiredRole && user.role !== requiredRole) {
+  const fetchSubscription = async () => {
+    try {
+      const response = await axios.get('/api/subscription/current');
+      setSubscription(response.data);
+    } catch (error) {
+      console.error('Error fetching subscription:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (user && user.role !== 'seller') {
     return <Navigate to="/discover" />;
   }
 
-  return children;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <div className="spinner mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading your dashboard...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const hasActiveSubscription = subscription && subscription.has_subscription && subscription.is_active;
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Welcome back, {user?.name}!
+          </h1>
+          <p className="text-gray-600">Manage your business listings and track your performance</p>
+        </div>
+
+        {/* Subscription Status */}
+        <Card className={`mb-8 ${hasActiveSubscription ? 'border-emerald-200 bg-emerald-50' : 'border-orange-200 bg-orange-50'}`}>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${hasActiveSubscription ? 'bg-emerald-100' : 'bg-orange-100'}`}>
+                  {hasActiveSubscription ? (
+                    <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
+                  ) : (
+                    <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+                  )}
+                </div>
+                <div>
+                  <h3 className={`font-semibold ${hasActiveSubscription ? 'text-emerald-800' : 'text-orange-800'}`}>
+                    {hasActiveSubscription ? 'Active Subscription' : 'Subscription Required'}
+                  </h3>
+                  <p className={`text-sm ${hasActiveSubscription ? 'text-emerald-600' : 'text-orange-600'}`}>
+                    {hasActiveSubscription 
+                      ? `Expires: ${new Date(subscription.expires_at).toLocaleDateString()}`
+                      : 'Subscribe to start listing your business'}
+                  </p>
+                </div>
+              </div>
+              {!hasActiveSubscription && (
+                <Button onClick={() => navigate('/subscription')}>
+                  Subscribe Now
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quick Stats */}
+        {hasActiveSubscription && (
+          <div className="grid md:grid-cols-3 gap-6 mb-8">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-gray-600">Total Businesses</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-gray-900">{businesses.length}</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-gray-600">Active Listings</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-gray-900">
+                  {businesses.filter(b => b.status === 'active').length}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-gray-600">Total Products</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-gray-900">0</div>
+                <p className="text-xs text-gray-500 mt-1">Add products to your businesses</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Business Listings */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Your Business Listings</CardTitle>
+                <CardDescription>Manage your registered businesses</CardDescription>
+              </div>
+              {hasActiveSubscription && (
+                <Button onClick={() => navigate('/create-business')}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Business
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {!hasActiveSubscription ? (
+              <div className="text-center py-12">
+                <Store className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Subscription Required</h3>
+                <p className="text-gray-600 mb-6">
+                  You need an active subscription to list your businesses on HomeBiz SG
+                </p>
+                <Button onClick={() => navigate('/subscription')}>
+                  View Subscription Plans
+                </Button>
+              </div>
+            ) : businesses.length === 0 ? (
+              <div className="text-center py-12">
+                <Store className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No businesses yet</h3>
+                <p className="text-gray-600 mb-6">
+                  Start by adding your first business listing
+                </p>
+                <Button onClick={() => navigate('/create-business')}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Your First Business
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {businesses.map((business) => (
+                  <div key={business.business_id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3">
+                          <Store className="w-5 h-5 text-emerald-600" />
+                          <div>
+                            <h4 className="font-semibold text-gray-900">{business.name}</h4>
+                            <p className="text-sm text-gray-600">{business.category}</p>
+                          </div>
+                        </div>
+                        <p className="text-gray-600 mt-2 line-clamp-2">{business.description}</p>
+                        <div className="flex items-center space-x-4 mt-3 text-sm text-gray-500">
+                          <div className="flex items-center space-x-1">
+                            <MapPin className="w-4 h-4" />
+                            <span>{business.address}</span>
+                          </div>
+                          <Badge 
+                            variant={business.status === 'active' ? 'default' : 'secondary'}
+                            className="text-xs"
+                          >
+                            {business.status}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button variant="outline" size="sm">
+                          Edit
+                        </Button>
+                        <Button variant="outline" size="sm">
+                          Products
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+// Subscription Status Check Component
+const SubscriptionStatusCheck = () => {
+  const location = useLocation();
+  const [sessionId, setSessionId] = useState(null);
+  const [checkingPayment, setCheckingPayment] = useState(false);
+  const [paymentResult, setPaymentResult] = useState(null);
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const session = urlParams.get('session_id');
+    
+    if (session) {
+      setSessionId(session);
+      checkPaymentStatus(session);
+    }
+  }, [location]);
+
+  const checkPaymentStatus = async (sessionId, attempts = 0) => {
+    const maxAttempts = 5;
+    
+    if (attempts >= maxAttempts) {
+      setPaymentResult({
+        success: false,
+        message: 'Payment verification timed out. Please check your account.'
+      });
+      setCheckingPayment(false);
+      return;
+    }
+
+    setCheckingPayment(true);
+    
+    try {
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+      
+      const response = await axios.get(`/api/subscription/status/${sessionId}`);
+      
+      if (response.data.payment_status === 'paid') {
+        setPaymentResult({
+          success: true,
+          message: 'Payment successful! Your subscription is now active.'
+        });
+        setCheckingPayment(false);
+        
+        // Redirect to dashboard after 3 seconds
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 3000);
+      } else if (response.data.status === 'expired') {
+        setPaymentResult({
+          success: false,
+          message: 'Payment session expired. Please try again.'
+        });
+        setCheckingPayment(false);
+      } else {
+        // Continue polling
+        setTimeout(() => checkPaymentStatus(sessionId, attempts + 1), 2000);
+      }
+    } catch (error) {
+      setPaymentResult({
+        success: false,
+        message: 'Error checking payment status. Please contact support.'
+      });
+      setCheckingPayment(false);
+    }
+  };
+
+  if (!sessionId) return null;
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4">
+      <Card className="max-w-md w-full">
+        <CardContent className="text-center py-8">
+          {checkingPayment ? (
+            <>
+              <div className="spinner mx-auto mb-4"></div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Processing Your Payment
+              </h3>
+              <p className="text-gray-600">
+                Please wait while we verify your subscription payment...
+              </p>
+            </>
+          ) : paymentResult ? (
+            <>
+              <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${
+                paymentResult.success ? 'bg-emerald-100' : 'bg-red-100'
+              }`}>
+                {paymentResult.success ? (
+                  <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-sm">✓</span>
+                  </div>
+                ) : (
+                  <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-sm">✗</span>
+                  </div>
+                )}
+              </div>
+              <h3 className={`text-lg font-semibold mb-2 ${
+                paymentResult.success ? 'text-emerald-900' : 'text-red-900'
+              }`}>
+                {paymentResult.success ? 'Payment Successful!' : 'Payment Failed'}
+              </h3>
+              <p className={`${
+                paymentResult.success ? 'text-emerald-700' : 'text-red-700'
+              }`}>
+                {paymentResult.message}
+              </p>
+              {paymentResult.success && (
+                <p className="text-sm text-gray-500 mt-4">
+                  Redirecting to dashboard in 3 seconds...
+                </p>
+              )}
+            </>
+          ) : null}
+        </CardContent>
+      </Card>
+    </div>
+  );
 };
 
 // Main App Component
