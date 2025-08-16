@@ -621,18 +621,100 @@ const Subscription = () => {
   );
 };
 
+// Google Maps Component
+const BusinessMap = ({ businesses, center = { lat: 1.3521, lng: 103.8198 } }) => {
+  const { isLoaded } = window.google ? { isLoaded: true } : require('@react-google-maps/api').useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY || ''
+  });
+
+  const mapContainerStyle = {
+    width: '100%',
+    height: '400px',
+    borderRadius: '12px'
+  };
+
+  const defaultOptions = {
+    zoom: 11,
+    center,
+    disableDefaultUI: false,
+    zoomControl: true,
+    scrollwheel: true,
+    disableDoubleClickZoom: false
+  };
+
+  if (!isLoaded) {
+    return (
+      <div className="w-full h-96 bg-gray-200 rounded-lg flex items-center justify-center">
+        <div className="text-gray-500">Loading map...</div>
+      </div>
+    );
+  }
+
+  const GoogleMap = require('@react-google-maps/api').GoogleMap;
+  const Marker = require('@react-google-maps/api').Marker;
+  const InfoWindow = require('@react-google-maps/api').InfoWindow;
+
+  return (
+    <GoogleMap
+      mapContainerStyle={mapContainerStyle}
+      center={center}
+      zoom={11}
+      options={defaultOptions}
+    >
+      {businesses.map((business) => (
+        <Marker
+          key={business.business_id}
+          position={{ lat: business.latitude, lng: business.longitude }}
+          title={business.name}
+        />
+      ))}
+    </GoogleMap>
+  );
+};
+
 // Discover Component  
 const Discover = () => {
   const [businesses, setBusinesses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [userLocation, setUserLocation] = useState(null);
+  const [searchArea, setSearchArea] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
 
   useEffect(() => {
     fetchBusinesses();
+    getCurrentLocation();
   }, []);
+
+  const getCurrentLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+        },
+        (error) => {
+          console.log('Location access denied or unavailable');
+          // Default to Singapore center
+          setUserLocation({ lat: 1.3521, lng: 103.8198 });
+        }
+      );
+    } else {
+      setUserLocation({ lat: 1.3521, lng: 103.8198 });
+    }
+  };
 
   const fetchBusinesses = async () => {
     try {
-      const response = await axios.get('/api/businesses');
+      const params = {};
+      if (userLocation) {
+        params.latitude = userLocation.lat;
+        params.longitude = userLocation.lng;
+      }
+      
+      const response = await axios.get('/api/businesses', { params });
       setBusinesses(response.data);
     } catch (error) {
       console.error('Error fetching businesses:', error);
@@ -641,11 +723,20 @@ const Discover = () => {
     }
   };
 
+  const filteredBusinesses = businesses.filter(business => {
+    const matchesCategory = !selectedCategory || business.category.toLowerCase().includes(selectedCategory.toLowerCase());
+    const matchesArea = !searchArea || business.address.toLowerCase().includes(searchArea.toLowerCase());
+    return matchesCategory && matchesArea;
+  });
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">Loading businesses...</div>
+          <div className="text-center">
+            <div className="spinner mx-auto mb-4"></div>
+            <p className="text-gray-600">Discovering amazing businesses near you...</p>
+          </div>
         </div>
       </div>
     );
@@ -663,30 +754,127 @@ const Discover = () => {
           </p>
         </div>
 
-        {businesses.length === 0 ? (
+        {/* Search and Filters */}
+        <div className="mb-8 bg-white rounded-xl shadow-md p-6">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="searchArea">Search by Area</Label>
+              <Input
+                id="searchArea"
+                placeholder="e.g., Orchard, Tampines, Jurong..."
+                value={searchArea}
+                onChange={(e) => setSearchArea(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="category">Category</Label>
+              <Input
+                id="category"
+                placeholder="e.g., Food, Beauty, Services..."
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Map View */}
+        {userLocation && filteredBusinesses.length > 0 && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <MapPin className="w-5 h-5 text-emerald-600" />
+                <span>Business Locations</span>
+              </CardTitle>
+              <CardDescription>Interactive map showing business locations in Singapore</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <BusinessMap businesses={filteredBusinesses} center={userLocation} />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Business Results */}
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">
+            {filteredBusinesses.length} {filteredBusinesses.length === 1 ? 'Business' : 'Businesses'} Found
+          </h2>
+          {filteredBusinesses.length > 0 && (
+            <div className="text-sm text-gray-600">
+              {searchArea && `in ${searchArea} • `}
+              {selectedCategory && `${selectedCategory} category`}
+            </div>
+          )}
+        </div>
+
+        {filteredBusinesses.length === 0 ? (
           <Card>
             <CardContent className="text-center py-12">
               <Store className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No businesses yet</h3>
-              <p className="text-gray-600">Be the first to register your business!</p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {businesses.length === 0 ? 'No businesses yet' : 'No businesses match your search'}
+              </h3>
+              <p className="text-gray-600">
+                {businesses.length === 0 
+                  ? 'Be the first to register your business!' 
+                  : 'Try adjusting your search criteria or explore other areas.'}
+              </p>
+              {(searchArea || selectedCategory) && (
+                <Button 
+                  variant="outline" 
+                  className="mt-4"
+                  onClick={() => {
+                    setSearchArea('');
+                    setSelectedCategory('');
+                  }}
+                >
+                  Clear Filters
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {businesses.map((business) => (
-              <Card key={business.business_id} className="hover:shadow-lg transition-shadow">
+            {filteredBusinesses.map((business) => (
+              <Card key={business.business_id} className="hover:shadow-lg transition-shadow card-depth">
                 <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Store className="w-5 h-5" />
-                    <span>{business.name}</span>
-                  </CardTitle>
-                  <Badge variant="secondary">{business.category}</Badge>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="flex items-center space-x-2">
+                        <Store className="w-5 h-5 text-emerald-600" />
+                        <span>{business.name}</span>
+                      </CardTitle>
+                      <Badge variant="secondary" className="mt-2">{business.category}</Badge>
+                    </div>
+                    {business.distance && (
+                      <Badge variant="outline" className="text-xs">
+                        {business.distance} km away
+                      </Badge>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-600 mb-4">{business.description}</p>
-                  <div className="flex items-center space-x-2 text-sm text-gray-500">
-                    <MapPin className="w-4 h-4" />
-                    <span>{business.address}</span>
+                  <p className="text-gray-600 mb-4 line-clamp-2">{business.description}</p>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2 text-sm text-gray-500">
+                      <MapPin className="w-4 h-4" />
+                      <span className="line-clamp-1">{business.address}</span>
+                    </div>
+                    
+                    {business.phone && (
+                      <div className="flex items-center space-x-2 text-sm text-gray-500">
+                        <span className="w-4 h-4 flex items-center justify-center">📞</span>
+                        <span>{business.phone}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <Button variant="outline" size="sm" className="w-full">
+                      <Store className="w-4 h-4 mr-2" />
+                      View Products & Services
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
