@@ -88,6 +88,9 @@ const Navigation = () => {
               <Link to="/discover" className="text-gray-700 hover:text-emerald-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
                 Discover
               </Link>
+              <Link to="/map" className="text-gray-700 hover:text-emerald-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                Map
+              </Link>
               {user && user.role === 'seller' && (
                 <>
                   <Link to="/dashboard" className="text-gray-700 hover:text-emerald-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
