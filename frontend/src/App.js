@@ -633,9 +633,10 @@ const MapView = () => {
   const [mapCenter, setMapCenter] = useState({ lat: 1.3521, lng: 103.8198 });
   const [zoom, setZoom] = useState(11);
 
-  const { isLoaded } = window.google ? { isLoaded: true } : require('@react-google-maps/api').useJsApiLoader({
+  // Load Google Maps API
+  const { isLoaded, loadError } = require('@react-google-maps/api').useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY || ''
+    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY || 'AIzaSyD_agwjlDti2izIw6L-j8b467rPKn5ZhiI'
   });
 
   useEffect(() => {
@@ -688,34 +689,7 @@ const MapView = () => {
     streetViewControl: true,
     rotateControl: false,
     fullscreenControl: true,
-    styles: [
-      {
-        featureType: 'poi',
-        elementType: 'labels',
-        stylers: [{ visibility: 'on' }]
-      },
-      {
-        featureType: 'transit',
-        elementType: 'labels',
-        stylers: [{ visibility: 'on' }]
-      }
-    ]
   };
-
-  if (!isLoaded) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="spinner mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading interactive map...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const GoogleMap = require('@react-google-maps/api').GoogleMap;
-  const Marker = require('@react-google-maps/api').Marker;
-  const InfoWindow = require('@react-google-maps/api').InfoWindow;
 
   const handleMarkerClick = (business) => {
     setSelectedBusiness(business);
@@ -732,10 +706,43 @@ const MapView = () => {
     }
   };
 
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Card className="max-w-md">
+          <CardContent className="text-center py-8">
+            <MapPin className="w-16 h-16 text-red-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Map Loading Error
+            </h3>
+            <p className="text-gray-600">
+              Unable to load Google Maps. Please check your internet connection and try again.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="spinner mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading interactive map...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const GoogleMap = require('@react-google-maps/api').GoogleMap;
+  const Marker = require('@react-google-maps/api').Marker;
+  const InfoWindow = require('@react-google-maps/api').InfoWindow;
+
   return (
-    <div className="relative">
+    <div className="relative map-fullscreen">
       {loading && (
-        <div className="absolute top-0 left-0 right-0 bg-emerald-600 text-white p-2 text-center z-10">
+        <div className="absolute top-0 left-0 right-0 bg-emerald-600 text-white p-2 text-center z-10 map-loading-overlay">
           <div className="flex items-center justify-center space-x-2">
             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
             <span>Loading {businesses.length} businesses...</span>
@@ -744,8 +751,8 @@ const MapView = () => {
       )}
 
       {/* Map Controls */}
-      <div className="absolute top-4 left-4 z-10 flex flex-col space-y-2">
-        <div className="bg-white rounded-lg shadow-lg p-4">
+      <div className="absolute top-4 left-4 z-10 flex flex-col space-y-2 map-controls">
+        <div className="bg-white rounded-lg shadow-lg p-4 map-overlay">
           <div className="flex items-center space-x-2 mb-2">
             <Store className="w-5 h-5 text-emerald-600" />
             <span className="font-semibold text-gray-900">
@@ -770,8 +777,8 @@ const MapView = () => {
       </div>
 
       {/* Legend */}
-      <div className="absolute top-4 right-4 z-10">
-        <div className="bg-white rounded-lg shadow-lg p-4">
+      <div className="absolute top-4 right-4 z-10 map-controls">
+        <div className="bg-white rounded-lg shadow-lg p-4 map-legend">
           <h3 className="font-semibold text-gray-900 mb-2">Legend</h3>
           <div className="space-y-2 text-sm">
             <div className="flex items-center space-x-2">
@@ -796,19 +803,9 @@ const MapView = () => {
         options={mapOptions}
       >
         {/* User Location Marker */}
-        {userLocation && (
+        {userLocation && isLoaded && (
           <Marker
             position={userLocation}
-            icon={{
-              url: 'data:image/svg+xml;base64,' + btoa(`
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="12" cy="12" r="8" fill="#3B82F6" stroke="white" stroke-width="2"/>
-                  <circle cx="12" cy="12" r="3" fill="white"/>
-                </svg>
-              `),
-              scaledSize: new window.google.maps.Size(24, 24),
-              anchor: new window.google.maps.Point(12, 12)
-            }}
             title="Your Location"
           />
         )}
@@ -819,17 +816,6 @@ const MapView = () => {
             key={business.business_id}
             position={{ lat: business.latitude, lng: business.longitude }}
             onClick={() => handleMarkerClick(business)}
-            icon={{
-              url: 'data:image/svg+xml;base64,' + btoa(`
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M16 2C10.48 2 6 6.48 6 12C6 20 16 30 16 30C16 30 26 20 26 12C26 6.48 21.52 2 16 2ZM16 16C13.79 16 12 14.21 12 12C12 9.79 13.79 8 16 8C18.21 8 20 9.79 20 12C20 14.21 18.21 16 16 16Z" fill="#10B981"/>
-                  <circle cx="16" cy="12" r="4" fill="white"/>
-                  <path d="M14 10H18V14H14V10Z" fill="#10B981"/>
-                </svg>
-              `),
-              scaledSize: new window.google.maps.Size(32, 32),
-              anchor: new window.google.maps.Point(16, 30)
-            }}
             title={business.name}
           />
         ))}
@@ -891,8 +877,8 @@ const MapView = () => {
       </GoogleMap>
 
       {/* Bottom Stats */}
-      <div className="absolute bottom-4 left-4 right-4 z-10">
-        <div className="bg-white rounded-lg shadow-lg p-4">
+      <div className="absolute bottom-4 left-4 right-4 z-10 map-controls">
+        <div className="bg-white rounded-lg shadow-lg p-4 map-overlay">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-6">
               <div className="flex items-center space-x-2">
