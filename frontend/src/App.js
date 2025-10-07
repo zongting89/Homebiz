@@ -1548,6 +1548,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/discover" element={<Discover />} />
+            <Route path="/map" element={<MapView />} />
             <Route 
               path="/subscription" 
               element={
