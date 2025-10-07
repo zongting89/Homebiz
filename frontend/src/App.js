@@ -902,9 +902,9 @@ const MapView = () => {
   );
 };
 const BusinessMap = ({ businesses, center = { lat: 1.3521, lng: 103.8198 } }) => {
-  const { isLoaded } = window.google ? { isLoaded: true } : require('@react-google-maps/api').useJsApiLoader({
+  const { isLoaded } = require('@react-google-maps/api').useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY || ''
+    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY || 'AIzaSyD_agwjlDti2izIw6L-j8b467rPKn5ZhiI'
   });
 
   const mapContainerStyle = {
@@ -932,7 +932,6 @@ const BusinessMap = ({ businesses, center = { lat: 1.3521, lng: 103.8198 } }) =>
 
   const GoogleMap = require('@react-google-maps/api').GoogleMap;
   const Marker = require('@react-google-maps/api').Marker;
-  const InfoWindow = require('@react-google-maps/api').InfoWindow;
 
   return (
     <GoogleMap
