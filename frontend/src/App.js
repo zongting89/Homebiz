@@ -986,7 +986,65 @@ const BusinessMap = ({ businesses, center = { lat: 1.3521, lng: 103.8198 } }) =>
     disableDefaultUI: false,
     zoomControl: true,
     scrollwheel: true,
-    disableDoubleClickZoom: false
+    disableDoubleClickZoom: false,
+    styles: [
+      // Hide all points of interest to show only our registered businesses
+      {
+        featureType: 'poi',
+        stylers: [{ visibility: 'off' }]
+      },
+      {
+        featureType: 'poi.business',
+        stylers: [{ visibility: 'off' }]
+      },
+      {
+        featureType: 'poi.government',
+        stylers: [{ visibility: 'off' }]
+      },
+      {
+        featureType: 'poi.medical',
+        stylers: [{ visibility: 'off' }]
+      },
+      {
+        featureType: 'poi.place_of_worship',
+        stylers: [{ visibility: 'off' }]
+      },
+      {
+        featureType: 'poi.school',
+        stylers: [{ visibility: 'off' }]
+      },
+      {
+        featureType: 'poi.sports_complex',
+        stylers: [{ visibility: 'off' }]
+      },
+      {
+        featureType: 'poi.attraction',
+        stylers: [{ visibility: 'off' }]
+      },
+      {
+        featureType: 'poi.park',
+        elementType: 'labels',
+        stylers: [{ visibility: 'off' }]
+      },
+      {
+        featureType: 'transit.station',
+        elementType: 'labels',
+        stylers: [{ visibility: 'off' }]
+      },
+      // Keep essential features for navigation
+      {
+        featureType: 'road',
+        stylers: [{ visibility: 'on' }]
+      },
+      {
+        featureType: 'water',
+        stylers: [{ visibility: 'on' }]
+      },
+      {
+        featureType: 'landscape',
+        stylers: [{ visibility: 'on' }]
+      }
+    ]
   };
 
   if (!isLoaded) {
