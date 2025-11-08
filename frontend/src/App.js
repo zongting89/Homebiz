@@ -689,6 +689,73 @@ const MapView = () => {
     streetViewControl: true,
     rotateControl: false,
     fullscreenControl: true,
+    styles: [
+      // Hide all points of interest
+      {
+        featureType: 'poi',
+        stylers: [{ visibility: 'off' }]
+      },
+      // Hide all business establishments
+      {
+        featureType: 'poi.business',
+        stylers: [{ visibility: 'off' }]
+      },
+      // Hide government buildings
+      {
+        featureType: 'poi.government',
+        stylers: [{ visibility: 'off' }]
+      },
+      // Hide medical facilities
+      {
+        featureType: 'poi.medical',
+        stylers: [{ visibility: 'off' }]
+      },
+      // Hide places of worship
+      {
+        featureType: 'poi.place_of_worship',
+        stylers: [{ visibility: 'off' }]
+      },
+      // Hide schools
+      {
+        featureType: 'poi.school',
+        stylers: [{ visibility: 'off' }]
+      },
+      // Hide sports complexes
+      {
+        featureType: 'poi.sports_complex',
+        stylers: [{ visibility: 'off' }]
+      },
+      // Hide tourist attractions
+      {
+        featureType: 'poi.attraction',
+        stylers: [{ visibility: 'off' }]
+      },
+      // Hide parks (optional - you might want to keep these)
+      {
+        featureType: 'poi.park',
+        elementType: 'labels',
+        stylers: [{ visibility: 'off' }]
+      },
+      // Hide transit stations labels but keep the stations visible for navigation
+      {
+        featureType: 'transit.station',
+        elementType: 'labels',
+        stylers: [{ visibility: 'off' }]
+      },
+      // Keep roads and geographical features visible for navigation
+      {
+        featureType: 'road',
+        stylers: [{ visibility: 'on' }]
+      },
+      {
+        featureType: 'water',
+        stylers: [{ visibility: 'on' }]
+      },
+      {
+        featureType: 'landscape',
+        stylers: [{ visibility: 'on' }]
+      }
+    ]
   };
 
   const handleMarkerClick = (business) => {
